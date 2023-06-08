@@ -6,6 +6,7 @@ The Telegram Group Inviter is a script designed to automate the task of inviting
 
 - [Requirements](#requirements)
 - [Installation](#installation)
+- [Getting Group IDs](#getting-group-ids)
 - [Environment Setup](#environment-setup)
 - [Usage](#usage)
 - [Detailed Usage Examples](#detailed-usage-examples)
@@ -43,6 +44,47 @@ Then, clone this repository to your local machine:
 git clone https://github.com/yourgithubusername/telegram-group-inviter.git
 cd telegram-group-inviter
 ```
+
+## Getting Group IDs
+
+To use the Telegram Group Inviter, you need the ID of the Telegram group you're inviting from. If you don't know the ID of your group, you can use the `Get-Group-IDs.py` script to obtain it.
+
+Before running `Get-Group-IDs.py`, ensure you have the required Python libraries installed. If you do not, you can install them with pip:
+
+```bash
+pip install telethon
+```
+
+Then, replace `your_api_id` and `your_api_hash` in the `Get-Group-IDs.py` file with your actual API ID and Hash. Here is the code:
+
+```python
+from telethon.sync import TelegramClient
+
+# This is your API ID and API Hash, replace 'your_api_id' and 'your_api_hash'
+# with the actual values which you got from Telegram's website when you created your application.
+api_id = 'your_api_id' 
+api_hash = 'your_api_hash' 
+
+# The 'anon' argument is simply the name of the session file. This file will be created
+# when you run the script and stores information about your session, so you won't have to 
+# log in every time you run your script.
+with TelegramClient('anon', api_id, api_hash) as client:
+    
+    # iter_dialogs function fetches all the dialogues associated with your account.
+    # These dialogues include both private and group chats.
+    for dialog in client.iter_dialogs():
+        
+        # This prints the name and the ID of each chat you are part of.
+        print(dialog.name, 'has ID', dialog.id)
+```
+
+To run the script, navigate to the directory containing the script in your terminal, and then enter:
+
+```bash
+python Get-Group-IDs.py
+```
+
+The script will print the name and ID of each chat you're part of. You can use these IDs with the Telegram Group Inviter script.
 
 ## Environment Setup
 
