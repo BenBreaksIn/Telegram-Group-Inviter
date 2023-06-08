@@ -6,12 +6,15 @@ from random import randint, uniform
 from datetime import datetime
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, UserPrivacyRestrictedError
-from telethon.tl.functions.channels import InviteToChannelRequest
 from telethon.tl.functions.messages import GetFullChatRequest
 from tqdm import tqdm
 
 log_file = 'telegram_inviter.log'
-logging.basicConfig(filename=log_file, level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(
+    filename=log_file, 
+    level=logging.INFO, 
+    format='%(asctime)s %(message)s'
+)
 
 pbar = None  # Initialize pbar at the module level
 
@@ -33,8 +36,13 @@ def get_inputs():
     validate_activity_hours(activity_start_hour, activity_end_hour)
     api_id = os.environ.get('TELEGRAM_API_ID', input("Enter your Telegram API ID: "))
     api_hash = os.environ.get('TELEGRAM_API_HASH', input("Enter your Telegram API HASH: "))
+    custom_message = input("Enter your custom message for invite: ")
 
-    return phone, new_group_link, old_group_id, delay, batch_size, total_invites, activity_start_hour, activity_end_hour, api_id, api_hash
+    return (
+        phone, new_group_link, old_group_id, delay, batch_size, 
+        total_invites, activity_start_hour, activity_end_hour, 
+        api_id, api_hash, custom_message
+    )
 
 
 invites = 0
@@ -51,7 +59,10 @@ async def connect_and_authorize(phone, api_id, api_hash):
     return client
 
 
-async def invite_users(client, new_group, users, delay, total_invites, activity_start_hour, activity_end_hour):
+async def invite_users(
+    client, new_group_link, users, delay, total_invites, 
+    activity_start_hour, activity_end_hour, custom_message
+):
     global invites
     global pbar
     for user in users:
@@ -60,7 +71,11 @@ async def invite_users(client, new_group, users, delay, total_invites, activity_
                 current_hour = datetime.now().hour
                 if activity_start_hour <= current_hour < activity_end_hour:
                     if invites < total_invites:
-                        await client(InviteToChannelRequest(new_group, [user.id]))
+                        message = (
+                            f"Hello {user.first_name}, {custom_message} Here is the link: "
+                            f"{new_group_link}. Feel free to join."
+                        )
+                        await client.send_message(user.id, message)
                         logging.info(f"Invited {user.id} at {datetime.now()}")
                         invites += 1
                         if pbar:
@@ -77,33 +92,46 @@ async def invite_users(client, new_group, users, delay, total_invites, activity_
                     await asyncio.sleep(sleep_time)  # Sleep till the start of activity hours
                 break
             except FloodWaitError as e:
-                logging.warning(f"Rate limit exceeded while trying to invite {user.id} at {datetime.now()}: {e}")
+                logging.warning(
+                    f"Rate limit exceeded while trying to invite {user.id} at {datetime.now()}: {e}"
+                )
                 await asyncio.sleep(e.seconds + uniform(1.5, 3))
             except UserPrivacyRestrictedError:
-                logging.warning(f"Couldn't invite user {user.id} due to privacy settings at {datetime.now()}")
+                logging.warning(
+                    f"Couldn't invite user {user.id} due to privacy settings at {datetime.now()}"
+                )
                 break
             except Exception as e:
                 if attempt < 2:
                     logging.error(
-                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Retrying in 5 seconds.")
+                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Retrying in 5 seconds."
+                    )
                     await asyncio.sleep(5)
                 else:
                     logging.error(
-                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Moving on to next user.")
+                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Moving on to next user."
+                    )
                 continue
 
 
 async def main():
-    phone, new_group_link, old_group_id, delay, batch_size, total_invites, activity_start_hour, activity_end_hour, api_id, api_hash = get_inputs()
+    (
+        phone, new_group_link, old_group_id, delay, batch_size, 
+        total_invites, activity_start_hour, activity_end_hour, 
+        api_id, api_hash, custom_message
+    ) = get_inputs()
+
     global pbar
     pbar = tqdm(total=total_invites)  # Move progress bar initialization here after total_invites is defined
     client = await connect_and_authorize(phone, api_id, api_hash)
 
-    new_group = await client.get_entity(new_group_link)
     old_group = await client(GetFullChatRequest(old_group_id))
 
     async for user in client.iter_participants(old_group, limit=batch_size):
-        await invite_users(client, new_group, [user], delay, total_invites, activity_start_hour, activity_end_hour)
+        await invite_users(
+            client, new_group_link, [user], delay, total_invites, 
+            activity_start_hour, activity_end_hour, custom_message
+        )
     if pbar:
         pbar.close()
 
