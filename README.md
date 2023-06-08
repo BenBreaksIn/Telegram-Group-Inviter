@@ -45,46 +45,74 @@ git clone https://github.com/yourgithubusername/telegram-group-inviter.git
 cd telegram-group-inviter
 ```
 
+Sure, I will update the **Getting Group IDs** section in your README file:
+
 ## Getting Group IDs
 
-To use the Telegram Group Inviter, you need the ID of the Telegram group you're inviting from. If you don't know the ID of your group, you can use the `Get-Group-IDs.py` script to obtain it.
+To use the Telegram Group Inviter, you need the ID of the Telegram group you're inviting from. If you don't know the ID of your group, you can use the `get_group_ids.py` script to obtain it.
 
-Before running `Get-Group-IDs.py`, ensure you have the required Python libraries installed. If you do not, you can install them with pip:
+Before running `get_group_ids.py`, ensure you have the required Python libraries installed. If you do not, you can install them with pip:
 
 ```bash
-pip install telethon
+pip install telethon configparser logging
 ```
 
-Then, replace `your_api_id` and `your_api_hash` in the `Get-Group-IDs.py` file with your actual API ID and Hash. Here is the code:
+To keep your API credentials secure, you should create a `config.ini` file in the same directory as your script with the following format:
+
+```ini
+[Telegram]
+api_id = your_api_id
+api_hash = your_api_hash
+```
+
+Replace 'your_api_id' and 'your_api_hash' with your actual API ID and Hash.
+
+Here is the code for `get_group_ids.py`:
 
 ```python
+import configparser
+import logging
 from telethon.sync import TelegramClient
+from telethon.errors import SessionPasswordNeededError
 
-# This is your API ID and API Hash, replace 'your_api_id' and 'your_api_hash'
-# with the actual values which you got from Telegram's website when you created your application.
-api_id = 'your_api_id' 
-api_hash = 'your_api_hash' 
+# Setting up logging
+logging.basicConfig(format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
+                    level=logging.WARNING)
 
-# The 'anon' argument is simply the name of the session file. This file will be created
-# when you run the script and stores information about your session, so you won't have to 
-# log in every time you run your script.
-with TelegramClient('anon', api_id, api_hash) as client:
-    
-    # iter_dialogs function fetches all the dialogues associated with your account.
-    # These dialogues include both private and group chats.
-    for dialog in client.iter_dialogs():
-        
-        # This prints the name and the ID of each chat you are part of.
-        print(dialog.name, 'has ID', dialog.id)
+def get_config():
+    """Reads API config from a file."""
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
+    return config['Telegram']['api_id'], config['Telegram']['api_hash']
+
+def main():
+    api_id, api_hash = get_config()
+    # We are using try-except block to handle potential errors
+    try:
+        with TelegramClient('anon', api_id, api_hash) as client:
+            # Fetch all the dialogues associated with your account
+            for dialog in client.iter_dialogs():
+                # Log the name and the ID of each chat
+                logging.info(f"{dialog.name} has ID {dialog.id}")
+    except SessionPasswordNeededError:
+        logging.error('Password needed for this session. Please provide it.')
+    except Exception as e:
+        logging.error(f'An unexpected error occurred: {e}')
+
+if __name__ == '__main__':
+    main()
 ```
 
 To run the script, navigate to the directory containing the script in your terminal, and then enter:
 
 ```bash
-python Get-Group-IDs.py
+python get_group_ids.py
 ```
 
 The script will print the name and ID of each chat you're part of. You can use these IDs with the Telegram Group Inviter script.
+
+Note: Please remember to add `config.ini` to your `.gitignore` file before committing your changes to GitHub to ensure you do not accidentally expose your sensitive data.
 
 ## Environment Setup
 
