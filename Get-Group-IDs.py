@@ -1,18 +1,35 @@
+import configparser
+import logging
 from telethon.sync import TelegramClient
+from telethon.errors import SessionPasswordNeededError
 
-# This is your API ID and API Hash, replace 'your_api_id' and 'your_api_hash'
-# with the actual values which you got from Telegram's website when you created your application.
-api_id = 'your_api_id' 
-api_hash = 'your_api_hash' 
+# Setting up logging
+logging.basicConfig(format='[%(levelname) 5s/%(asctime)s] %(name)s: %(message)s',
+                    level=logging.WARNING)
 
-# The 'anon' argument is simply the name of the session file. This file will be created
-# when you run the script and stores information about your session, so you won't have to 
-# log in every time you run your script.
-with TelegramClient('anon', api_id, api_hash) as client:
-    
-    # iter_dialogs function fetches all the dialogues associated with your account.
-    # These dialogues include both private and group chats.
-    for dialog in client.iter_dialogs():
-        
-        # This prints the name and the ID of each chat you are part of.
-        print(dialog.name, 'has ID', dialog.id)
+
+def get_config():
+    """Reads API config from a file."""
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+
+    return config['Telegram']['api_id'], config['Telegram']['api_hash']
+
+
+def main():
+    api_id, api_hash = get_config()
+    # We are using try-except block to handle potential errors
+    try:
+        with TelegramClient('anon', api_id, api_hash) as client:
+            # Fetch all the dialogues associated with your account
+            for dialog in client.iter_dialogs():
+                # Log the name and the ID of each chat
+                logging.info(f"{dialog.name} has ID {dialog.id}")
+    except SessionPasswordNeededError:
+        logging.error('Password needed for this session. Please provide it.')
+    except Exception as e:
+        logging.error(f'An unexpected error occurred: {e}')
+
+
+if __name__ == '__main__':
+    main()
