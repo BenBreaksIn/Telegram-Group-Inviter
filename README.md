@@ -41,11 +41,9 @@ pip install asyncio getpass logging tqdm telethon
 Then, clone this repository to your local machine:
 
 ```
-git clone https://github.com/yourgithubusername/telegram-group-inviter.git
+git clone https://github.com/BenBreaksIn/telegram-group-inviter.git
 cd telegram-group-inviter
 ```
-
-Sure, I will update the **Getting Group IDs** section in your README file:
 
 ## Getting Group IDs
 
