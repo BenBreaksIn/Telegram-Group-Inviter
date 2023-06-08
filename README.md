@@ -91,6 +91,7 @@ You will be prompted to enter several pieces of information:
 - The end hour of activity (24-hour format)
 - Your Telegram API ID (optional: you can set this as an environment variable `TELEGRAM_API_ID`)
 - Your Telegram API HASH (optional: you can set this as an environment variable `TELEGRAM_API_HASH`)
+- Your custom message for the invite
 
 Example of input:
 
@@ -100,13 +101,14 @@ Enter the link of the new Telegram group: https://t.me/joinchat/XXXXXX
 Enter the ID of the old Telegram group: 123456789
 Enter the delay between invites (in seconds): 30
 Enter the number of users to invite in a batch: 10
-Enter the total number of invites: 100
-Enter the
+Enter the total number of
 
- start hour of activity (24-hour format): 8
+ invites: 100
+Enter the start hour of activity (24-hour format): 8
 Enter the end hour of activity (24-hour format): 18
 Enter your Telegram API ID: 123456
 Enter your Telegram API HASH: XXXXXXXXXXXXXXXXXX
+Enter your custom message for the invite: Welcome to our new group!
 ```
 
 Please note that using this script for spamming or any intrusive activities may violate Telegram's terms of service. Please use it responsibly.
@@ -128,6 +130,7 @@ Enter the start hour of activity (24-hour format): 9
 Enter the end hour of activity (24-hour format): 18
 Enter your Telegram API ID: your_api_id
 Enter your Telegram API HASH: your_api_hash
+Enter your custom message for the invite: Welcome to our new group!
 ```
 
 The script will now run, inviting users from the old group to the new one during the specified hours.
@@ -138,4 +141,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 
 ## License
 
-This project is licensed under the MIT License 
+This project is licensed under the MIT License
