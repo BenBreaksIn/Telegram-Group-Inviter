@@ -1,22 +1,25 @@
 import os
 import asyncio
-import getpass
 import logging
-from random import randint, uniform
+from random import randint
 from datetime import datetime
-from telethon import TelegramClient
-from telethon.errors import FloodWaitError, UserPrivacyRestrictedError
-from telethon.tl.functions.messages import GetFullChatRequest
+from telethon import TelegramClient, errors
 from tqdm import tqdm
 
 log_file = 'telegram_inviter.log'
 logging.basicConfig(
-    filename=log_file, 
-    level=logging.INFO, 
+    filename=log_file,
+    level=logging.INFO,
     format='%(asctime)s %(message)s'
 )
 
 pbar = None  # Initialize pbar at the module level
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 
 def validate_activity_hours(start, end):
@@ -24,8 +27,30 @@ def validate_activity_hours(start, end):
         raise ValueError("Activity hours should be in 0-24 range")
 
 
-def get_inputs():
+async def get_inputs():
+    print("Getting user inputs...")
+    logging.info("Getting user inputs...")
     phone = input("Enter your Telegram phone number: ")
+
+    print("Connecting and authorizing...")
+    logging.info("Connecting and authorizing...")
+    api_id = os.environ.get('TELEGRAM_API_ID', input("Enter your Telegram API ID: "))
+    api_hash = os.environ.get('TELEGRAM_API_HASH', input("Enter your Telegram API HASH: "))
+    client = TelegramClient('session_name', api_id, api_hash)
+    print("Client created.")
+    logging.info("Client created.")
+    await client.connect()
+    print("Client connected.")
+    logging.info("Client connected.")
+
+    if not await client.is_user_authorized():
+        print("Client not authorized. Sending code request...")
+        logging.info("Client not authorized. Sending code request...")
+        await client.send_code_request(phone)
+        await client.sign_in(phone, input('Enter the code: '))
+    print("Connected and authorized.")
+    logging.info("Connected and authorized.")
+
     new_group_link = input("Enter the link of the new Telegram group: ")
     old_group_id = int(input("Enter the ID of the old Telegram group: "))  # Converting to int
     delay = int(input("Enter the delay between invites (in seconds): "))
@@ -34,13 +59,13 @@ def get_inputs():
     activity_start_hour = int(input("Enter the start hour of activity (24-hour format): "))
     activity_end_hour = int(input("Enter the end hour of activity (24-hour format): "))
     validate_activity_hours(activity_start_hour, activity_end_hour)
-    api_id = os.environ.get('TELEGRAM_API_ID', input("Enter your Telegram API ID: "))
-    api_hash = os.environ.get('TELEGRAM_API_HASH', input("Enter your Telegram API HASH: "))
     custom_message = input("Enter your custom message for invite: ")
+    print("Finished getting user inputs.")
+    logging.info("Finished getting user inputs.")
 
     return (
-        phone, new_group_link, old_group_id, delay, batch_size, 
-        total_invites, activity_start_hour, activity_end_hour, 
+        client, phone, new_group_link, old_group_id, delay, batch_size,
+        total_invites, activity_start_hour, activity_end_hour,
         api_id, api_hash, custom_message
     )
 
@@ -48,24 +73,14 @@ def get_inputs():
 invites = 0
 
 
-async def connect_and_authorize(phone, api_id, api_hash):
-    client = TelegramClient('session_name', api_id, api_hash)
-    await client.connect()
-
-    if not await client.is_user_authorized():
-        await client.send_code_request(phone)
-        await client.sign_in(phone, getpass.getpass('Enter the code: '))
-
-    return client
-
-
 async def invite_users(
-    client, new_group_link, users, delay, total_invites, 
-    activity_start_hour, activity_end_hour, custom_message
+        client, new_group_link, users, delay, total_invites,
+        activity_start_hour, activity_end_hour, custom_message
 ):
     global invites
     global pbar
     for user in users:
+        logging.info(f"Starting user {user.id} invitations...")
         for attempt in range(3):
             try:
                 current_hour = datetime.now().hour
@@ -83,6 +98,7 @@ async def invite_users(
                         await asyncio.sleep(randint(delay, delay + 20))
                     else:
                         print("Invitation limit reached.")
+                        logging.info("Invitation limit reached.")
                         if pbar:
                             pbar.close()
                         return
@@ -91,47 +107,48 @@ async def invite_users(
                     sleep_time = 60 * ((activity_start_hour - current_hour) % 24)
                     await asyncio.sleep(sleep_time)  # Sleep till the start of activity hours
                 break
-            except FloodWaitError as e:
+            except errors.FloodWaitError as e:
                 logging.warning(
                     f"Rate limit exceeded while trying to invite {user.id} at {datetime.now()}: {e}"
                 )
-                await asyncio.sleep(e.seconds + uniform(1.5, 3))
-            except UserPrivacyRestrictedError:
+                await asyncio.sleep(e.seconds + 20)
+            except errors.UserPrivacyRestrictedError:
                 logging.warning(
                     f"Couldn't invite user {user.id} due to privacy settings at {datetime.now()}"
                 )
                 break
             except Exception as e:
-                if attempt < 2:
-                    logging.error(
-                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Retrying in 5 seconds."
-                    )
-                    await asyncio.sleep(5)
-                else:
-                    logging.error(
-                        f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Moving on to next user."
-                    )
+                logging.error(
+                    f"Error while trying to invite {user.id} at {datetime.now()}: {e}. Moving on to next user."
+                )
                 continue
+        logging.info(f"Finished user {user.id} invitations.")
 
 
 async def main():
     (
-        phone, new_group_link, old_group_id, delay, batch_size, 
-        total_invites, activity_start_hour, activity_end_hour, 
+        client, phone, new_group_link, old_group_id, delay, batch_size,
+        total_invites, activity_start_hour, activity_end_hour,
         api_id, api_hash, custom_message
-    ) = get_inputs()
+    ) = await get_inputs()
 
     global pbar
     pbar = tqdm(total=total_invites)  # Move progress bar initialization here after total_invites is defined
-    client = await connect_and_authorize(phone, api_id, api_hash)
 
-    old_group = await client(GetFullChatRequest(old_group_id))
+    try:
+        old_group = await client.get_entity(old_group_id)
+    except ValueError:
+        print("The provided group ID is invalid.")
+        return
 
-    async for user in client.iter_participants(old_group, limit=batch_size):
+    users = await client.get_participants(old_group, aggressive=True)
+
+    for user_chunk in chunks(users, batch_size):
         await invite_users(
-            client, new_group_link, [user], delay, total_invites, 
+            client, new_group_link, user_chunk, delay, total_invites,
             activity_start_hour, activity_end_hour, custom_message
         )
+
     if pbar:
         pbar.close()
 
