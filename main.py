@@ -81,12 +81,6 @@ async def invite_users(
     global pbar
     for user in users:
         logging.info(f"Starting user {user.id} invitations...")
-        # Check if user has already been invited
-        with open('invited_users.txt', 'r') as file:
-            invited_users = file.read().splitlines()
-            if str(user.id) in invited_users:
-                logging.info(f"User {user.id} has already been invited. Skipping.")
-                continue
         for attempt in range(3):
             try:
                 current_hour = datetime.now().hour
@@ -98,9 +92,6 @@ async def invite_users(
                         )
                         await client.send_message(user.id, message)
                         logging.info(f"Invited {user.id} at {datetime.now()}")
-                        # Add user to invited_users.txt
-                        with open('invited_users.txt', 'a') as file:
-                            file.write(f"{user.id}\n")
                         invites += 1
                         if pbar:
                             pbar.update(1)
