@@ -79,20 +79,14 @@ async def invite_users(
 ):
     global invites
     global pbar
-
-    # Load list of already invited users from a file
-    try:
-        with open('invited_users.txt', 'r') as f:
-            invited_users = f.read().splitlines()
-    except FileNotFoundError:
-        invited_users = []
-
     for user in users:
-        # Skip this user if they have already been invited
-        if str(user.id) in invited_users:
-            continue
-
         logging.info(f"Starting user {user.id} invitations...")
+        # Check if user has already been invited
+        with open('invited_users.txt', 'r') as file:
+            invited_users = file.read().splitlines()
+            if str(user.id) in invited_users:
+                logging.info(f"User {user.id} has already been invited. Skipping.")
+                continue
         for attempt in range(3):
             try:
                 current_hour = datetime.now().hour
@@ -103,12 +97,10 @@ async def invite_users(
                             f"{new_group_link}. Feel free to join."
                         )
                         await client.send_message(user.id, message)
-
-                        # Record this user as invited
-                        with open('invited_users.txt', 'a') as f:
-                            f.write(str(user.id) + '\n')
-
                         logging.info(f"Invited {user.id} at {datetime.now()}")
+                        # Add user to invited_users.txt
+                        with open('invited_users.txt', 'a') as file:
+                            file.write(f"{user.id}\n")
                         invites += 1
                         if pbar:
                             pbar.update(1)
